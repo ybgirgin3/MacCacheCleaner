@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/getlantern/systray"
@@ -28,7 +29,7 @@ var DEFAULT_DEBUG string = "0"
 
 var (
 	appName     string = "MacCacheCleaner"
-	runningIcon string = " W"
+	runningIcon string = " ♻️"
 )
 
 var Commands = map[string]string{
@@ -47,17 +48,44 @@ func main() {
 }
 
 // helpers
-func cacheFileLen(targetFilePath string) (int, error) {
+func cacheFileDir(targetFilePath string) (map[string]string, error) {
+	// var _files = []string{}
+
 	homedir, err := os.UserHomeDir()
 	if err != nil {
-		return 0, err
+		return map[string]string{}, err
 	}
 	fmt.Println(targetFilePath)
+
 	dir := filepath.Join(homedir, Commands[targetFilePath])
-	fmt.Println("cacheFileLen dir", dir)
+
+	// get names off files
+	// entries, err := os.ReadDir(dir)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("errrrr %v", err)
+	//
+	// }
+	// for _, e := range entries {
+	// 	fmt.Println(e.Name(), e)
+	// 	_files = append(_files, e.Name())
+	// }
+
+	// get len of all files
 	files, _ := ioutil.ReadDir(dir)
 	// returnString := fmt.Sprintf("%d found in %s", len(files), dir)
-	return len(files), nil
+	var filePaths = []string{}
+
+	for _, e := range files {
+		fmt.Println(e.Name(), e)
+		filePaths = append(filePaths, e.Name())
+	}
+
+	fmt.Println("files in cacheFileDir", filePaths)
+
+	return map[string]string{
+		"len":      strconv.Itoa(len(files)),
+		"allFiles": fmt.Sprintf(strings.Join(filePaths[:], "\n")),
+	}, nil
 }
 
 func onReady() {
@@ -69,12 +97,21 @@ func onReady() {
 
 	// ** buttons
 	// .cache
-	filelen, err := cacheFileLen("dotcachedirpath")
+	dirInfo, err := cacheFileDir("dotcachedirpath")
 	if err != nil {
 		fmt.Println(err)
 	}
-	dotcacheButtonName := fmt.Sprintf(".cache (%d file found)", filelen)
-	dotcacheButton := systray.AddMenuItem(dotcacheButtonName, "Clean .cache file")
+	fmt.Println("dirInfooo", dirInfo)
+
+	// dirinf, _ := dirInfo.(map[string]interface{})
+	// jsonData, err := json.MarshalIndent(dirInfo, "", "  ")
+	// if err != nil {
+	// 	fmt.Println("erro amk", err)
+	// }
+	// info, _ := json.Marshal(dirInfo)
+
+	dotcacheButtonName := fmt.Sprintf(".cache (%s file found)", dirInfo["len"])
+	dotcacheButton := systray.AddMenuItem(dotcacheButtonName, dirInfo["allFiles"])
 
 	// ** quit
 	mQuit := systray.AddMenuItem("Quit", "Quit App")
@@ -106,6 +143,7 @@ func onReady() {
 		if err := runTerminalCommand(_commandString); err != nil {
 			return err
 		}
+		cacheFileDir("dotcachedirpath")
 		return nil
 	}
 
